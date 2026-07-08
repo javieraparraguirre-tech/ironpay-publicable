@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IronPay | Cobranza</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <section class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="logo">IP</div>
+      <h1>IronPay</h1>
+      <p>Plataforma web de cobranza para mensualidades y clases sueltas.</p>
+      <div class="login-tabs">
+        <button class="tab-button active" type="button" data-login-tab="admin">Administracion</button>
+        <button class="tab-button" type="button" data-login-tab="member">Socio</button>
+      </div>
+      <form class="login-pane active" id="loginForm">
+        <label>Email
+          <input name="email" type="email" autocomplete="username" required>
+        </label>
+        <label>Clave
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button>Entrar</button>
+        <small id="loginHint">Acceso privado para administracion.</small>
+      </form>
+      <form class="login-pane" id="memberLoginForm">
+        <label>Email o telefono
+          <input name="identifier" autocomplete="username" placeholder="Ej: ironboxspa@gmail.com o +56 9..." required>
+        </label>
+        <button>Entrar como socio</button>
+        <small>Accede a tu estado de cuenta, pagos y datos de transferencia.</small>
+      </form>
+    </div>
+  </section>
+
+  <section class="member-portal hidden" id="memberPortal">
+    <header class="portal-topbar">
+      <div>
+        <p class="eyebrow">Portal de socio</p>
+        <h1>IronPay</h1>
+      </div>
+    </header>
+    <main class="portal-main">
+      <section class="panel portal-hero">
+        <div>
+          <h2 id="portalMemberName">Socio</h2>
+          <p class="muted" id="portalMemberPlan">Plan</p>
+        </div>
+        <div class="portal-balance">
+          <span>Saldo pendiente</span>
+          <strong id="portalDebt">$0</strong>
+        </div>
+      </section>
+      <div class="grid two">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Estado de cuenta</h2>
+            <span id="portalChargesLabel">0 pendientes</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Concepto</th><th>Vence</th><th class="right">Saldo</th><th>Accion</th></tr></thead>
+              <tbody id="portalChargeRows"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel stack">
+          <h2>Pago por transferencia</h2>
+          <p class="muted">Despues de transferir, informa el pago para que administracion lo confirme.</p>
+          <div class="transfer-box" id="transferBox"></div>
+          <form class="stack" id="transferNoticeForm">
+            <label>Cargo <select name="chargeId" id="transferCharge"></select></label>
+            <label>Monto transferido <input name="amount" type="number" min="0" step="1000" required></label>
+            <label>Referencia o comprobante <input name="reference" placeholder="Ej: Nro operacion banco"></label>
+            <button>Informar transferencia</button>
+          </form>
+        </section>
+      </div>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Mis pagos</h2>
+          <span id="portalPaymentsLabel">$0</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Medio</th><th class="right">Monto</th></tr></thead>
+            <tbody id="portalPaymentRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <div class="app hidden" id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">IP</div>
+        <div>
+          <strong>IronPay</strong>
+          <span>Iron Gym</span>
+        </div>
+      </div>
+      <nav>
+        <button class="nav active" data-view="dashboard">Dashboard</button>
+        <button class="nav" data-view="members">Socios</button>
+        <button class="nav" data-view="plans">Planes</button>
+        <button class="nav" data-view="charges">Cargos</button>
+        <button class="nav" data-view="classes">Clases sueltas</button>
+        <button class="nav" data-view="payments">Pagos</button>
+        <button class="nav" data-view="settings">Configuracion</button>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Operacion</p>
+          <h1 id="pageTitle">Dashboard</h1>
+        </div>
+        <div class="user-box">
+          <span id="currentUser">Administrador</span>
+          <button class="secondary" id="logoutBtn">Salir</button>
+        </div>
+      </header>
+
+      <section class="view active" id="dashboard">
+        <div class="metrics">
+          <article><span>Cobrado hoy</span><strong id="mToday">$0</strong></article>
+          <article><span>Cobrado mes</span><strong id="mMonth">$0</strong></article>
+          <article class="danger-metric"><span>Deuda vencida</span><strong id="mOverdue">$0</strong></article>
+          <article><span>Socios activos</span><strong id="mMembers">0</strong></article>
+        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Morosidad</h2>
+            <span id="overdueLabel">0 cargos</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Socio</th><th>Concepto</th><th>Vence</th><th class="right">Saldo</th></tr></thead>
+              <tbody id="overdueRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="members">
+        <div class="grid form-grid">
+          <form class="panel stack" id="memberForm">
+            <h2>Nuevo socio</h2>
+            <label>Nombre completo <input name="name" required></label>
+            <label>Telefono <input name="phone" required placeholder="+56 9 1234 5678"></label>
+            <label>Email <input name="email" type="email"></label>
+            <label>Plan <select name="planId" id="memberPlan"></select></label>
+            <button>Guardar socio</button>
+          </form>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Socios</h2>
+              <button class="secondary" id="refreshMembersBtn">Actualizar</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nombre</th><th>Plan</th><th>Telefono</th><th class="right">Deuda</th><th>Link</th><th>WhatsApp</th><th>Accion</th></tr></thead>
+                <tbody id="memberRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="plans">
+        <div class="grid form-grid">
+          <form class="panel stack" id="planForm">
+            <h2>Nuevo plan</h2>
+            <label>Nombre <input name="name" required></label>
+            <label>Disciplina <input name="discipline" required></label>
+            <label>Monto mensual <input name="amount" type="number" min="0" step="1000" required></label>
+            <button>Guardar plan</button>
+          </form>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Planes activos</h2>
+              <span id="plansLabel">0 planes</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Plan</th><th>Disciplina</th><th class="right">Monto</th><th>Estado</th><th>Accion</th></tr></thead>
+                <tbody id="planRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="charges">
+        <div class="actions-row">
+          <button id="generateMonthlyBtn">Generar mensualidades del mes</button>
+          <button class="secondary" id="refreshChargesBtn">Actualizar</button>
+        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Cargos pendientes</h2>
+            <span id="chargesLabel">0 pendientes</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Socio</th><th>Tipo</th><th>Concepto</th><th>Vence</th><th class="right">Total</th><th class="right">Saldo</th><th>Estado</th></tr></thead>
+              <tbody id="chargeRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="classes">
+        <div class="grid form-grid">
+          <form class="panel stack" id="classForm">
+            <h2>Registrar clase suelta</h2>
+            <label>Socio <select name="memberId" id="classMember"></select></label>
+            <label>Descripcion <input name="description" required value="Clase suelta"></label>
+            <label>Monto <input name="amount" type="number" min="0" step="1000" required value="12000"></label>
+            <label>Fecha <input name="date" type="date" required></label>
+            <label>Estado
+              <select name="paymentStatus">
+                <option value="paid">Pagada ahora</option>
+                <option value="pending">Dejar pendiente</option>
+              </select>
+            </label>
+            <button>Registrar clase</button>
+          </form>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Clases sueltas</h2>
+              <span id="classesLabel">0 clases</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Fecha</th><th>Socio</th><th>Descripcion</th><th class="right">Monto</th><th>Estado</th></tr></thead>
+                <tbody id="classRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="payments">
+        <div class="grid form-grid">
+          <form class="panel stack" id="paymentForm">
+            <h2>Registrar pago</h2>
+            <label>Cargo pendiente <select name="chargeId" id="paymentCharge"></select></label>
+            <label>Monto <input name="amount" type="number" min="0" step="1000" required></label>
+            <label>Medio
+              <select name="method">
+                <option>Transferencia</option>
+                <option>Efectivo</option>
+                <option>Tarjeta</option>
+                <option>Webpay</option>
+              </select>
+            </label>
+            <label>Fecha <input name="paidAt" type="date" required></label>
+            <button>Guardar pago</button>
+          </form>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Transferencias informadas</h2>
+              <span id="noticesLabel">0 pendientes</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Fecha</th><th>Socio</th><th>Referencia</th><th class="right">Monto</th><th>Estado</th><th>Accion</th></tr></thead>
+                <tbody id="noticeRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="settings">
+        <div class="grid two">
+          <section class="panel stack">
+            <h2>Pago online</h2>
+            <form class="stack" id="settingsForm">
+              <label>Link de pago real <input name="payment_link_url" type="url" placeholder="https://..."></label>
+              <label>Dia vencimiento mensual <input name="monthly_due_day" type="number" min="1" max="28" required></label>
+              <button>Guardar configuracion</button>
+            </form>
+          </section>
+          <section class="panel stack">
+            <h2>Cuenta transferencia</h2>
+            <div class="transfer-box" id="settingsTransferBox"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="emptyTpl">
+    <tr><td class="empty" colspan="8">Sin informacion para mostrar.</td></tr>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
