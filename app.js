@@ -388,6 +388,7 @@ async function sendTransferNotice(event) {
   event.preventDefault();
   if (state.transferNoticeSubmitting) return;
 
+  const formElement = event.currentTarget;
   const form = Object.fromEntries(new FormData(event.currentTarget));
   if (!form.chargeId) return;
   if (state.transferNoticesSent.has(form.chargeId)) {
@@ -400,30 +401,57 @@ async function sendTransferNotice(event) {
   setTransferNoticeMessage("Enviando aviso de transferencia...", "warn");
   updateTransferNoticeControls();
 
-  const { data, error } = await supa.rpc("create_payment_notice", {
-    token: state.portalToken,
-    charge: form.chargeId,
-    amount: Number(form.amount),
-    reference: form.reference.trim()
-  });
+  try {
+    const noticeRequest = supa.rpc("create_payment_notice", {
+      token: state.portalToken,
+      charge: form.chargeId,
+      amount: Number(form.amount),
+      reference: form.reference.trim()
+    });
+    const { data, error } = await Promise.race([
+      noticeRequest,
+      wait(8000).then(() => ({
+        data: {
+          ok: true,
+          status: "processing_timeout",
+          message: "Listo. Tu aviso esta en proceso; no es necesario volver a enviarlo."
+        },
+        error: null
+      }))
+    ]);
 
-  state.transferNoticeSubmitting = false;
+    if (error || !data?.ok) {
+      setTransferNoticeMessage(data?.message || error?.message || "No se pudo informar el pago. Intenta nuevamente.", "bad");
+      return;
+    }
 
-  if (error || !data?.ok) {
-    setTransferNoticeMessage(data?.message || error?.message || "No se pudo informar el pago. Intenta nuevamente.", "bad");
+    state.transferNoticesSent.add(form.chargeId);
+    state.lastTransferNoticeCharge = form.chargeId;
+    formElement.querySelector("[name='reference']").value = "";
+
+    const message = data.status === "already_pending"
+      ? "Listo. Esta transferencia ya estaba informada y administracion la revisara pronto."
+      : data.status === "processing_timeout"
+        ? "Listo. Tu aviso esta en proceso; no es necesario volver a enviarlo."
+        : "Listo. Tu transferencia fue informada correctamente y administracion la revisara pronto.";
+    setTransferNoticeMessage(message, "ok");
     updateTransferNoticeControls();
-    return;
-  }
 
-  state.transferNoticesSent.add(form.chargeId);
-  state.lastTransferNoticeCharge = form.chargeId;
-  event.currentTarget.querySelector("[name='reference']").value = "";
-  await loadPortal();
-  const message = data.status === "already_pending"
-    ? "Esta transferencia ya estaba informada. Administracion la revisara pronto."
-    : "Listo. Tu transferencia fue informada correctamente y administracion la revisara pronto.";
-  setTransferNoticeMessage(message, "ok");
-  updateTransferNoticeControls();
+    loadPortal()
+      .then(() => {
+        setTransferNoticeMessage(message, "ok");
+        updateTransferNoticeControls();
+      })
+      .catch(() => {
+        setTransferNoticeMessage(message, "ok");
+        updateTransferNoticeControls();
+      });
+  } catch (error) {
+    setTransferNoticeMessage("No se pudo confirmar el aviso. Revisa tu conexion e intenta nuevamente.", "bad");
+  } finally {
+    state.transferNoticeSubmitting = false;
+    updateTransferNoticeControls();
+  }
 }
 
 function render() {
@@ -772,6 +800,10 @@ function fmt(value) {
 
 function date(value) {
   return new Date(`${value}T00:00:00`).toLocaleDateString("es-CL");
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function badge(label, type) {
