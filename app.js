@@ -14,7 +14,10 @@ let state = {
   payments: [],
   notices: [],
   portalToken: new URLSearchParams(location.search).get("portal"),
-  portalData: null
+  portalData: null,
+  transferNoticeSubmitting: false,
+  transferNoticesSent: new Set(),
+  lastTransferNoticeCharge: ""
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -45,9 +48,19 @@ function bindEvents() {
   $("#paymentForm").addEventListener("submit", savePayment);
   $("#settingsForm").addEventListener("submit", saveSettings);
   $("#transferNoticeForm").addEventListener("submit", sendTransferNotice);
+  $("#transferCharge").addEventListener("change", () => {
+    const selectedCharge = $("#transferCharge").value;
+    if (state.transferNoticesSent.has(selectedCharge)) {
+      setTransferNoticeMessage("Esta transferencia ya fue informada. Administracion la revisara pronto.", "ok");
+    } else {
+      setTransferNoticeMessage("");
+    }
+    updateTransferNoticeControls();
+  });
   $("#generateMonthlyBtn").addEventListener("click", generateMonthlyCharges);
   $("#refreshMembersBtn").addEventListener("click", refreshAll);
   $("#refreshChargesBtn").addEventListener("click", refreshAll);
+  $("#downloadReportBtn").addEventListener("click", downloadMembersReport);
 
   $$("[data-login-tab]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -373,17 +386,44 @@ async function loadPortal() {
 
 async function sendTransferNotice(event) {
   event.preventDefault();
+  if (state.transferNoticeSubmitting) return;
+
   const form = Object.fromEntries(new FormData(event.currentTarget));
+  if (!form.chargeId) return;
+  if (state.transferNoticesSent.has(form.chargeId)) {
+    setTransferNoticeMessage("Esta transferencia ya fue informada. Administracion la revisara pronto.", "ok");
+    updateTransferNoticeControls();
+    return;
+  }
+
+  state.transferNoticeSubmitting = true;
+  setTransferNoticeMessage("Enviando aviso de transferencia...", "warn");
+  updateTransferNoticeControls();
+
   const { data, error } = await supa.rpc("create_payment_notice", {
     token: state.portalToken,
     charge: form.chargeId,
     amount: Number(form.amount),
     reference: form.reference.trim()
   });
-  if (error || !data?.ok) return alert(data?.message || error?.message || "No se pudo informar el pago.");
-  event.currentTarget.reset();
-  alert("Transferencia informada. Administracion debe confirmarla.");
+
+  state.transferNoticeSubmitting = false;
+
+  if (error || !data?.ok) {
+    setTransferNoticeMessage(data?.message || error?.message || "No se pudo informar el pago. Intenta nuevamente.", "bad");
+    updateTransferNoticeControls();
+    return;
+  }
+
+  state.transferNoticesSent.add(form.chargeId);
+  state.lastTransferNoticeCharge = form.chargeId;
+  event.currentTarget.querySelector("[name='reference']").value = "";
   await loadPortal();
+  const message = data.status === "already_pending"
+    ? "Esta transferencia ya estaba informada. Administracion la revisara pronto."
+    : "Listo. Tu transferencia fue informada correctamente y administracion la revisara pronto.";
+  setTransferNoticeMessage(message, "ok");
+  updateTransferNoticeControls();
 }
 
 function render() {
@@ -394,6 +434,7 @@ function render() {
   renderCharges();
   renderClasses();
   renderPayments();
+  renderReports();
   renderSettings();
 }
 
@@ -489,6 +530,32 @@ function renderPayments() {
   `);
 }
 
+function renderReports() {
+  const report = membersReport();
+  const paid = report.filter((item) => item.paymentStatus === "Al dia");
+  const overdue = report.filter((item) => item.paymentStatus !== "Al dia");
+  const debt = report.reduce((total, item) => total + item.debt, 0);
+
+  text("#rTotal", report.length);
+  text("#rPaid", paid.length);
+  text("#rOverdue", overdue.length);
+  text("#rDebt", fmt(debt));
+  text("#reportLabel", `${report.length} socios`);
+
+  rows("#reportRows", report, (item) => `
+    <tr>
+      <td>${esc(item.name)}</td>
+      <td>${esc(item.plan)}</td>
+      <td>${esc(item.phone)}</td>
+      <td>${esc(item.email)}</td>
+      <td>${badge(item.paymentStatus, item.paymentStatus === "Al dia" ? "ok" : "bad")}</td>
+      <td>${esc(item.lastPayment || "Sin pagos")}</td>
+      <td class="right">${fmt(item.debt)}</td>
+      <td>${badge(item.memberStatus, item.memberStatus === "Activo" ? "ok" : "warn")}</td>
+    </tr>
+  `);
+}
+
 function renderSettings() {
   if (!state.settings) return;
   $("#settingsForm [name='payment_link_url']").value = state.settings.payment_link_url || "";
@@ -509,7 +576,12 @@ function renderPortal() {
   text("#portalPaymentsLabel", fmt(sum(payments)));
   $("#transferBox").innerHTML = transferHtml(data.settings);
   $("#transferCharge").innerHTML = charges.map((charge) => option(charge.id, `${charge.description} - ${fmt(charge.balance)}`)).join("");
-  $("#transferNoticeForm [name='amount']").value = charges[0]?.balance || "";
+  if (state.lastTransferNoticeCharge && charges.some((charge) => charge.id === state.lastTransferNoticeCharge)) {
+    $("#transferCharge").value = state.lastTransferNoticeCharge;
+  }
+  const selectedCharge = charges.find((charge) => charge.id === $("#transferCharge").value) || charges[0];
+  $("#transferNoticeForm [name='amount']").value = selectedCharge?.balance || "";
+  updateTransferNoticeControls();
   rows("#portalChargeRows", charges, (charge) => `
     <tr>
       <td>${esc(charge.description)}</td>
@@ -521,6 +593,86 @@ function renderPortal() {
   rows("#portalPaymentRows", payments, (payment) => `
     <tr><td>${date(payment.paid_at)}</td><td>${esc(payment.method)}</td><td class="right">${fmt(payment.amount)}</td></tr>
   `);
+}
+
+function updateTransferNoticeControls() {
+  const select = $("#transferCharge");
+  const button = $("#transferNoticeBtn");
+  if (!select || !button) return;
+  const selectedCharge = select.value;
+  const charge = (state.portalData?.charges || []).find((item) => item.id === selectedCharge);
+  const amount = $("#transferNoticeForm [name='amount']");
+  if (charge && amount && document.activeElement !== amount) amount.value = charge.balance || "";
+  const alreadySent = selectedCharge && state.transferNoticesSent.has(selectedCharge);
+  button.disabled = state.transferNoticeSubmitting || alreadySent || !selectedCharge;
+  if (state.transferNoticeSubmitting) {
+    button.textContent = "Enviando...";
+  } else if (alreadySent) {
+    button.textContent = "Transferencia informada";
+  } else {
+    button.textContent = "Informar transferencia";
+  }
+}
+
+function setTransferNoticeMessage(message, type = "ok") {
+  const box = $("#transferNoticeMessage");
+  if (!box) return;
+  box.textContent = message;
+  box.className = `notice ${type}`;
+  box.classList.toggle("hidden", !message);
+}
+
+function membersReport() {
+  return state.members.map((member) => {
+    const memberCharges = state.charges.filter((charge) => charge.member_id === member.id);
+    const memberPayments = state.payments.filter((payment) => payment.member_id === member.id);
+    const debt = memberCharges.reduce((total, charge) => total + Number(charge.balance || 0), 0);
+    const hasOverdue = memberCharges.some((charge) => charge.balance > 0 && charge.status === "overdue");
+    const lastPayment = memberPayments
+      .map((payment) => payment.paid_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1);
+
+    return {
+      name: member.name,
+      plan: member.plans?.name || "Sin plan",
+      phone: member.phone || "",
+      email: member.email || "",
+      paymentStatus: debt <= 0 ? "Al dia" : hasOverdue ? "Moroso" : "Pendiente",
+      lastPayment: lastPayment ? date(lastPayment) : "",
+      debt,
+      memberStatus: member.status === "active" ? "Activo" : "Inactivo"
+    };
+  });
+}
+
+function downloadMembersReport() {
+  const report = membersReport();
+  const headers = ["Socio", "Plan", "Telefono", "Email", "Estado pago", "Ultimo pago", "Deuda", "Estado socio"];
+  const lines = [
+    headers,
+    ...report.map((item) => [
+      item.name,
+      item.plan,
+      item.phone,
+      item.email,
+      item.paymentStatus,
+      item.lastPayment || "Sin pagos",
+      item.debt,
+      item.memberStatus
+    ])
+  ];
+  const csv = `sep=;\n${lines.map((line) => line.map(csvCell).join(";")).join("\n")}`;
+  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `reporte-socios-${today}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function copyMemberLink(memberId) {
@@ -632,6 +784,10 @@ function statusLabel(status) {
 
 function statusClass(status) {
   return { paid: "ok", pending: "warn", overdue: "bad" }[status] || "warn";
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
 
 function esc(value) {

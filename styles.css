@@ -31,6 +31,10 @@ button {
   padding: 11px 14px;
 }
 button:hover { background: var(--primary-dark); }
+button:disabled {
+  cursor: not-allowed;
+  opacity: .62;
+}
 .secondary { background: var(--soft); color: var(--primary-dark); }
 .secondary:hover { background: #d2ebe8; }
 .danger { background: #fee4e2; color: var(--bad); }
@@ -104,6 +108,25 @@ button:hover { background: var(--primary-dark); }
 .transfer-box span {
   color: var(--muted);
   font-weight: 800;
+}
+
+.notice {
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 12px;
+}
+.notice.ok {
+  background: #dcfce7;
+  color: var(--good);
+}
+.notice.warn {
+  background: #fef3c7;
+  color: var(--warn);
+}
+.notice.bad {
+  background: #fee2e2;
+  color: var(--bad);
 }
 
 .login-screen {

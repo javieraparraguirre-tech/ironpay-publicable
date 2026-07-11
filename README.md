@@ -9,6 +9,7 @@ Esta carpeta contiene una version publicable de IronPay usando:
 - Links de WhatsApp.
 - Transferencias informadas.
 - Configuracion de dia de vencimiento mensual, por defecto dia 3.
+- Reporte de todos los socios con descarga compatible con Excel.
 
 ## 1. Crear proyecto en Supabase
 
@@ -70,6 +71,13 @@ Opcion simple:
 
 En Socios puedes eliminar un socio. Esto elimina tambien su historial asociado.
 En Planes puedes eliminar un plan si no tiene socios; si ya tiene socios asociados, IronPay lo desactiva para no romper el historial.
+En Reporte socios puedes ver socios al dia y morosos, deuda total y descargar el listado para abrirlo en Excel.
+En el portal del socio, el boton Informar transferencia se bloquea mientras envia y muestra confirmacion para evitar avisos repetidos.
+Para bloquear duplicados incluso si el socio recarga la pagina, ejecuta una vez en Supabase SQL Editor:
+
+```text
+update-transfer-notice-guard.sql
+```
 
 ## Actualizacion: acceso Socio en pantalla inicial
 

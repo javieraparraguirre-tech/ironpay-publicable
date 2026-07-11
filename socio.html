@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Iron Box - Panel Socio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="member-body">
+    <main class="member-app">
+      <header class="member-hero">
+        <div class="brand member-brand">
+          <div class="brand-mark">IB</div>
+          <div>
+            <strong>Iron Box</strong>
+            <span>Panel socio</span>
+          </div>
+        </div>
+
+        <form class="member-login" id="memberLoginForm">
+          <label class="member-picker">
+            Email o telefono
+            <input id="memberIdentifier" name="identifier" placeholder="socio@correo.cl" required />
+          </label>
+          <button class="primary-button" type="submit">Ingresar</button>
+          <button class="secondary-button" id="syncIronPayButton" type="button">Actualizar pago</button>
+        </form>
+      </header>
+
+      <section class="member-summary hidden" id="memberSummary">
+        <article class="member-card plan-card">
+          <p class="eyebrow">Mi membresia</p>
+          <h1 id="memberName">Socio</h1>
+          <div class="plan-row">
+            <span id="memberPlan">-</span>
+            <strong id="memberStatus">-</strong>
+          </div>
+          <p id="memberExpiry" class="muted-copy"></p>
+          <a class="payment-link hidden" id="paymentLink" href="#" target="_blank" rel="noreferrer">Pagar en IronPay</a>
+        </article>
+
+        <article class="member-card">
+          <p class="eyebrow">Mis reservas</p>
+          <h2>Proximas clases</h2>
+          <ul class="booking-list" id="bookingList"></ul>
+        </article>
+      </section>
+
+      <section class="calendar-panel hidden" id="memberAgenda">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Agenda semanal</p>
+            <h2>Elige tu clase</h2>
+          </div>
+          <p class="muted-copy">Cupo maximo por clase: 15 socios.</p>
+        </div>
+
+        <div class="member-calendar" id="memberCalendar"></div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./socio.js"></script>
+  </body>
+</html>

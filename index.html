@@ -76,7 +76,8 @@
             <label>Cargo <select name="chargeId" id="transferCharge"></select></label>
             <label>Monto transferido <input name="amount" type="number" min="0" step="1000" required></label>
             <label>Referencia o comprobante <input name="reference" placeholder="Ej: Nro operacion banco"></label>
-            <button>Informar transferencia</button>
+            <div class="notice hidden" id="transferNoticeMessage" role="status"></div>
+            <button id="transferNoticeBtn">Informar transferencia</button>
           </form>
         </section>
       </div>
@@ -111,6 +112,7 @@
         <button class="nav" data-view="charges">Cargos</button>
         <button class="nav" data-view="classes">Clases sueltas</button>
         <button class="nav" data-view="payments">Pagos</button>
+        <button class="nav" data-view="reports">Reporte socios</button>
         <button class="nav" data-view="settings">Configuracion</button>
       </nav>
     </aside>
@@ -277,6 +279,30 @@
             </div>
           </section>
         </div>
+      </section>
+
+      <section class="view" id="reports">
+        <div class="metrics">
+          <article><span>Total socios</span><strong id="rTotal">0</strong></article>
+          <article><span>Al dia</span><strong id="rPaid">0</strong></article>
+          <article class="danger-metric"><span>Morosos</span><strong id="rOverdue">0</strong></article>
+          <article><span>Deuda total</span><strong id="rDebt">$0</strong></article>
+        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Todos los socios</h2>
+              <span id="reportLabel">0 socios</span>
+            </div>
+            <button class="secondary" id="downloadReportBtn">Descargar Excel</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Socio</th><th>Plan</th><th>Telefono</th><th>Email</th><th>Estado pago</th><th>Ultimo pago</th><th class="right">Deuda</th><th>Estado socio</th></tr></thead>
+              <tbody id="reportRows"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <section class="view" id="settings">
