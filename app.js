@@ -97,6 +97,11 @@ function bindEvents() {
     const button = event.target.closest("[data-confirm-notice]");
     if (button) await confirmNotice(button.dataset.confirmNotice);
   });
+
+  $("#portalChargeRows").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-report-link-payment]");
+    if (button) await reportLinkPayment(button.dataset.reportLinkPayment);
+  });
 }
 
 async function login(event) {
@@ -313,6 +318,8 @@ async function saveSettings(event) {
   const { error } = await supa.from("app_settings").update({
     payment_link_url: form.payment_link_url.trim(),
     monthly_due_day: Math.min(28, Math.max(1, Number(form.monthly_due_day))),
+    notification_whatsapp: form.notification_whatsapp.trim(),
+    notification_email: form.notification_email.trim(),
     updated_at: new Date().toISOString()
   }).eq("id", 1);
   if (error) return alert(error.message);
@@ -425,17 +432,22 @@ async function sendTransferNotice(event) {
       return;
     }
 
-    state.transferNoticesSent.add(form.chargeId);
-    state.lastTransferNoticeCharge = form.chargeId;
-    formElement.querySelector("[name='reference']").value = "";
+  state.transferNoticesSent.add(form.chargeId);
+  state.lastTransferNoticeCharge = form.chargeId;
+  formElement.querySelector("[name='reference']").value = "";
+  const notifiedCharge = (state.portalData?.charges || []).find((item) => item.id === form.chargeId);
+  const notifiedMember = state.portalData?.member;
 
-    const message = data.status === "already_pending"
-      ? "Listo. Esta transferencia ya estaba informada y administracion la revisara pronto."
-      : data.status === "processing_timeout"
-        ? "Listo. Tu aviso esta en proceso; no es necesario volver a enviarlo."
-        : "Listo. Tu transferencia fue informada correctamente y administracion la revisara pronto.";
-    setTransferNoticeMessage(message, "ok");
-    updateTransferNoticeControls();
+  const message = data.status === "already_pending"
+    ? "Listo. Esta transferencia ya estaba informada y administracion la revisara pronto."
+    : data.status === "processing_timeout"
+      ? "Listo. Tu aviso esta en proceso; no es necesario volver a enviarlo."
+      : "Listo. Tu transferencia fue informada correctamente y administracion la revisara pronto.";
+  setTransferNoticeMessage(message, "ok");
+  if (notifiedCharge && notifiedMember) {
+    notifyAdminPaymentNotice("Transferencia", notifiedMember, notifiedCharge, form.amount);
+  }
+  updateTransferNoticeControls();
 
     loadPortal()
       .then(() => {
@@ -452,6 +464,40 @@ async function sendTransferNotice(event) {
     state.transferNoticeSubmitting = false;
     updateTransferNoticeControls();
   }
+}
+
+async function reportLinkPayment(chargeId) {
+  if (!chargeId || state.transferNoticesSent.has(chargeId)) {
+    setLinkPaymentNoticeMessage("Este pago ya fue informado. Administracion lo revisara pronto.", "ok");
+    renderPortal();
+    return;
+  }
+
+  const charge = (state.portalData?.charges || []).find((item) => item.id === chargeId);
+  const member = state.portalData?.member;
+  if (!charge || !member) return;
+
+  setLinkPaymentNoticeMessage("Informando pago por link...", "warn");
+  const { data, error } = await supa.rpc("create_payment_notice", {
+    token: state.portalToken,
+    charge: charge.id,
+    amount: Number(charge.balance || charge.amount || 0),
+    reference: "Pago por link informado por socio"
+  });
+
+  if (error || !data?.ok) {
+    setLinkPaymentNoticeMessage(data?.message || error?.message || "No se pudo informar el pago por link. Intenta nuevamente.", "bad");
+    return;
+  }
+
+  state.transferNoticesSent.add(charge.id);
+  state.lastTransferNoticeCharge = charge.id;
+  const message = data.status === "already_pending"
+    ? "Listo. Este pago ya estaba informado y administracion lo revisara pronto."
+    : "Listo. Tu pago por link fue informado correctamente y administracion lo revisara pronto.";
+  setLinkPaymentNoticeMessage(message, "ok");
+  notifyAdminPaymentNotice("Pago por link", member, charge, charge.balance || charge.amount);
+  renderPortal();
 }
 
 function render() {
@@ -588,6 +634,8 @@ function renderSettings() {
   if (!state.settings) return;
   $("#settingsForm [name='payment_link_url']").value = state.settings.payment_link_url || "";
   $("#settingsForm [name='monthly_due_day']").value = state.settings.monthly_due_day || 3;
+  $("#settingsForm [name='notification_whatsapp']").value = state.settings.notification_whatsapp || "";
+  $("#settingsForm [name='notification_email']").value = state.settings.notification_email || "";
   $("#settingsTransferBox").innerHTML = transferHtml(state.settings);
 }
 
@@ -615,7 +663,10 @@ function renderPortal() {
       <td>${esc(charge.description)}</td>
       <td>${date(charge.due_date)}</td>
       <td class="right">${fmt(charge.balance)}</td>
-      <td><button class="secondary" onclick="openPaymentLink('${esc(charge.id)}')">Pagar link</button></td>
+      <td>
+        <button class="secondary" onclick="openPaymentLink('${esc(charge.id)}')">Pagar link</button>
+        <button class="secondary" data-report-link-payment="${esc(charge.id)}" ${state.transferNoticesSent.has(charge.id) ? "disabled" : ""}>Ya pague por link</button>
+      </td>
     </tr>
   `);
   rows("#portalPaymentRows", payments, (payment) => `
@@ -648,6 +699,35 @@ function setTransferNoticeMessage(message, type = "ok") {
   box.textContent = message;
   box.className = `notice ${type}`;
   box.classList.toggle("hidden", !message);
+}
+
+function setLinkPaymentNoticeMessage(message, type = "ok") {
+  const box = $("#linkPaymentNoticeMessage");
+  if (!box) return;
+  box.textContent = message;
+  box.className = `notice ${type}`;
+  box.classList.toggle("hidden", !message);
+}
+
+function notifyAdminPaymentNotice(kind, member, charge, amount) {
+  const settings = state.portalData?.settings || {};
+  const message = [
+    `IronPay: ${kind} informado.`,
+    `Socio: ${member.name}`,
+    `Cargo: ${charge.description}`,
+    `Monto: ${fmt(amount)}`,
+    "Revisar y confirmar en administracion."
+  ].join("\n");
+  const phone = whatsappPhone(settings.notification_whatsapp);
+  if (phone) {
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
+    return;
+  }
+  if (settings.notification_email) {
+    const subject = encodeURIComponent(`IronPay - ${kind} informado`);
+    const body = encodeURIComponent(message);
+    window.open(`mailto:${settings.notification_email}?subject=${subject}&body=${body}`, "_blank");
+  }
 }
 
 function membersReport() {

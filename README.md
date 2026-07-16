@@ -73,10 +73,17 @@ En Socios puedes eliminar un socio. Esto elimina tambien su historial asociado.
 En Planes puedes eliminar un plan si no tiene socios; si ya tiene socios asociados, IronPay lo desactiva para no romper el historial.
 En Reporte socios puedes ver socios al dia y morosos, deuda total y descargar el listado para abrirlo en Excel.
 En el portal del socio, el boton Informar transferencia se bloquea mientras envia y muestra confirmacion para evitar avisos repetidos.
+El socio tambien puede presionar Ya pague por link para generar un aviso en administracion. Si configuras WhatsApp o email de avisos, IronPay abre un mensaje listo para notificarte.
 Para bloquear duplicados incluso si el socio recarga la pagina, ejecuta una vez en Supabase SQL Editor:
 
 ```text
 update-transfer-notice-guard.sql
+```
+
+Para habilitar los campos de WhatsApp/email de avisos en una base existente, ejecuta una vez:
+
+```text
+update-payment-link-notices.sql
 ```
 
 ## Actualizacion: acceso Socio en pantalla inicial

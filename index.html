@@ -62,6 +62,7 @@
             <h2>Estado de cuenta</h2>
             <span id="portalChargesLabel">0 pendientes</span>
           </div>
+          <div class="notice hidden" id="linkPaymentNoticeMessage" role="status"></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Concepto</th><th>Vence</th><th class="right">Saldo</th><th>Accion</th></tr></thead>
@@ -269,7 +270,7 @@
           </form>
           <section class="panel">
             <div class="panel-head">
-              <h2>Transferencias informadas</h2>
+              <h2>Pagos informados</h2>
               <span id="noticesLabel">0 pendientes</span>
             </div>
             <div class="table-wrap">
@@ -313,6 +314,8 @@
             <form class="stack" id="settingsForm">
               <label>Link de pago real <input name="payment_link_url" type="url" placeholder="https://..."></label>
               <label>Dia vencimiento mensual <input name="monthly_due_day" type="number" min="1" max="28" required></label>
+              <label>WhatsApp para avisos <input name="notification_whatsapp" placeholder="+56 9 1234 5678"></label>
+              <label>Email para avisos <input name="notification_email" type="email" placeholder="ironboxspa@gmail.com"></label>
               <button>Guardar configuracion</button>
             </form>
           </section>

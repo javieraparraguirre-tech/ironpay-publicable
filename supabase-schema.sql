@@ -18,6 +18,8 @@ create table if not exists app_settings (
   transfer_account_type text not null default 'Cuenta corriente',
   transfer_account_number text not null default '91046920',
   transfer_email text not null default 'ironboxspa@gmail.com',
+  notification_whatsapp text not null default '',
+  notification_email text not null default 'ironboxspa@gmail.com',
   updated_at timestamptz not null default now()
 );
 
@@ -77,6 +79,10 @@ create table if not exists payment_notices (
   confirmed_at date,
   created_at timestamptz not null default now()
 );
+
+create unique index if not exists payment_notices_one_pending_per_charge
+on payment_notices (charge_id, member_id)
+where status = 'pending';
 
 create or replace view charge_balances as
 select
@@ -230,9 +236,26 @@ begin
     );
   end if;
 
-  insert into payment_notices (charge_id, member_id, amount, reference)
-  values (charge, member_row.id, least(amount, charge_row.balance), reference)
-  returning id into notice_id;
+  begin
+    insert into payment_notices (charge_id, member_id, amount, reference)
+    values (charge, member_row.id, least(amount, charge_row.balance), reference)
+    returning id into notice_id;
+  exception when unique_violation then
+    select id into notice_id
+    from payment_notices
+    where charge_id = charge
+      and member_id = member_row.id
+      and status = 'pending'
+    order by created_at desc
+    limit 1;
+
+    return jsonb_build_object(
+      'ok', true,
+      'notice_id', notice_id,
+      'status', 'already_pending',
+      'message', 'Esta transferencia ya fue informada y esta pendiente de revision.'
+    );
+  end;
 
   return jsonb_build_object('ok', true, 'notice_id', notice_id, 'status', 'created');
 end;
