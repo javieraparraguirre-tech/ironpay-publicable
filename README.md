@@ -74,6 +74,7 @@ En Planes puedes eliminar un plan si no tiene socios; si ya tiene socios asociad
 En Reporte socios puedes ver socios al dia y morosos, deuda total y descargar el listado para abrirlo en Excel.
 En el portal del socio, el boton Informar transferencia se bloquea mientras envia y muestra confirmacion para evitar avisos repetidos.
 El socio tambien puede presionar Ya pague por link para generar un aviso en administracion. Si configuras WhatsApp o email de avisos, IronPay abre un mensaje listo para notificarte.
+Las mensualidades del mes se generan automaticamente al entrar a administracion, al entrar al portal de socio y al crear un socio nuevo. No necesitas borrar y volver a crear socios cada mes.
 Para bloquear duplicados incluso si el socio recarga la pagina, ejecuta una vez en Supabase SQL Editor:
 
 ```text
@@ -84,6 +85,12 @@ Para habilitar los campos de WhatsApp/email de avisos en una base existente, eje
 
 ```text
 update-payment-link-notices.sql
+```
+
+Para habilitar la generacion mensual automatica en una base existente, ejecuta una vez:
+
+```text
+update-monthly-auto.sql
 ```
 
 ## Actualizacion: acceso Socio en pantalla inicial

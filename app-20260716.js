@@ -15,6 +15,7 @@ let state = {
   notices: [],
   portalToken: new URLSearchParams(location.search).get("portal"),
   portalData: null,
+  monthlyChargesEnsured: false,
   transferNoticeSubmitting: false,
   transferNoticesSent: new Set(),
   lastTransferNoticeCharge: ""
@@ -30,6 +31,7 @@ async function init() {
   bindEvents();
 
   if (state.portalToken) {
+    await ensureMonthlyCharges();
     await loadPortal();
     return;
   }
@@ -121,6 +123,7 @@ async function login(event) {
 async function memberLogin(event) {
   event.preventDefault();
   const form = Object.fromEntries(new FormData(event.currentTarget));
+  await ensureMonthlyCharges();
   const { data, error } = await supa.rpc("get_member_portal_by_identifier", {
     identifier: form.identifier.trim()
   });
@@ -155,6 +158,7 @@ async function openAdminApp() {
   $("#loginScreen").classList.add("hidden");
   $("#memberPortal").classList.add("hidden");
   $("#app").classList.remove("hidden");
+  await ensureMonthlyCharges();
   await refreshAll();
 }
 
@@ -230,6 +234,7 @@ async function saveMember(event) {
   });
   if (error) return alert(error.message);
   event.currentTarget.reset();
+  await ensureMonthlyCharges(true);
   await refreshAll();
 }
 
@@ -328,34 +333,22 @@ async function saveSettings(event) {
 }
 
 async function generateMonthlyCharges() {
-  if (!state.members.length) return alert("No hay socios activos.");
-  const dueDate = monthlyDueDate();
-  const period = dueDate.slice(0, 7);
-  let created = 0;
-
-  for (const member of state.members.filter((item) => item.status === "active")) {
-    const plan = member.plans;
-    if (!plan) continue;
-    const exists = state.charges.some((charge) => (
-      charge.member_id === member.id &&
-      charge.kind === "monthly" &&
-      charge.period === period
-    ));
-    if (exists) continue;
-
-    const { error } = await supa.from("charges").insert({
-      member_id: member.id,
-      kind: "monthly",
-      description: `Mensualidad ${plan.name}`,
-      amount: plan.amount,
-      due_date: dueDate,
-      period
-    });
-    if (!error) created += 1;
-  }
-
+  const data = await ensureMonthlyCharges(true);
   await refreshAll();
-  alert(created ? `Se generaron ${created} mensualidades.` : "No habia mensualidades nuevas.");
+  if (!data) return;
+  alert(data.created ? `Se generaron ${data.created} mensualidades.` : "No habia mensualidades nuevas para este mes.");
+}
+
+async function ensureMonthlyCharges(force = false) {
+  if (state.monthlyChargesEnsured && !force) return null;
+  const { data, error } = await supa.rpc("ensure_current_monthly_charges");
+  if (error) {
+    console.warn("No se pudieron asegurar las mensualidades del mes", error);
+    if (force) alert(error.message);
+    return null;
+  }
+  state.monthlyChargesEnsured = true;
+  return data;
 }
 
 async function confirmNotice(noticeId) {
