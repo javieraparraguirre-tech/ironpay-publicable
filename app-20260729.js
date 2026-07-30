@@ -645,6 +645,7 @@ function renderPortal() {
   text("#portalDebt", fmt(debt));
   text("#portalChargesLabel", `${charges.length} pendientes`);
   text("#portalPaymentsLabel", fmt(sum(payments)));
+  renderBookingPortalLink(data.settings?.booking_link_url);
   $("#transferBox").innerHTML = transferHtml(data.settings);
   $("#transferCharge").innerHTML = charges.map((charge) => option(charge.id, `${charge.description} - ${fmt(charge.balance)}`)).join("");
   if (state.lastTransferNoticeCharge && charges.some((charge) => charge.id === state.lastTransferNoticeCharge)) {
@@ -686,6 +687,13 @@ function updateTransferNoticeControls() {
   } else {
     button.textContent = "Informar transferencia";
   }
+}
+
+function renderBookingPortalLink(url) {
+  const link = $("#bookingPortalLink");
+  if (!link) return;
+  link.href = url || "#";
+  link.classList.toggle("hidden", !url);
 }
 
 function setTransferNoticeMessage(message, type = "ok") {

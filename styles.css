@@ -90,6 +90,18 @@ button:disabled {
   font-size: 30px;
 }
 
+.portal-action {
+  background: var(--primary);
+  border-radius: 8px;
+  color: white;
+  font-weight: 800;
+  padding: 11px 14px;
+  text-decoration: none;
+}
+.portal-action:hover {
+  background: var(--primary-dark);
+}
+
 .transfer-box {
   background: #f8fbfa;
   border: 1px solid var(--line);
