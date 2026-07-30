@@ -11,6 +11,7 @@ create table if not exists profiles (
 create table if not exists app_settings (
   id int primary key default 1,
   payment_link_url text not null default '',
+  booking_link_url text not null default '',
   monthly_due_day int not null default 3 check (monthly_due_day between 1 and 28),
   transfer_bank text not null default 'Banco Santander',
   transfer_holder text not null default 'Iron Gym Spa',

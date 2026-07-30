@@ -128,6 +128,18 @@ button:disabled {
   background: #fee2e2;
   color: var(--bad);
 }
+.notice-action {
+  background: var(--primary);
+  border-radius: 8px;
+  color: white;
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+.notice-action:hover {
+  background: var(--primary-dark);
+}
 
 .login-screen {
   align-items: center;
