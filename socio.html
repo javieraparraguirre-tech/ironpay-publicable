@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Iron Box - Panel Socio</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./agenda.css?v=20260803" />
   </head>
   <body class="member-body">
     <main class="member-app">
@@ -36,7 +37,10 @@
             <strong id="memberStatus">-</strong>
           </div>
           <p id="memberExpiry" class="muted-copy"></p>
-          <a class="payment-link hidden" id="paymentLink" href="#" target="_blank" rel="noreferrer">Pagar en IronPay</a>
+          <div class="member-payment-actions">
+            <button class="secondary-button hidden" id="buySingleClassButton" type="button">Comprar clase $6.000</button>
+            <a class="payment-link hidden" id="paymentLink" href="#" target="_blank" rel="noreferrer">Pagar en IronPay</a>
+          </div>
         </article>
 
         <article class="member-card">
@@ -46,11 +50,23 @@
         </article>
       </section>
 
+      <section class="calendar-panel today-panel hidden" id="todayPanel">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Entrenamientos de hoy</p>
+            <h2 id="todayTitle">Agenda de hoy</h2>
+          </div>
+          <p class="muted-copy" id="todayCutoffText">Disponible hasta las 15:00 hrs.</p>
+        </div>
+
+        <div class="today-class-grid" id="todayClasses"></div>
+      </section>
+
       <section class="calendar-panel hidden" id="memberAgenda">
         <div class="section-header">
           <div>
-            <p class="eyebrow">Agenda semanal</p>
-            <h2>Elige tu clase</h2>
+            <p class="eyebrow">Proximos entrenamientos</p>
+            <h2>Agenda disponible</h2>
           </div>
           <p class="muted-copy">Cupo maximo por clase: 15 socios.</p>
         </div>
@@ -61,6 +77,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./socio.js"></script>
+    <script src="./socio-20260803.js?v=20260803"></script>
   </body>
 </html>

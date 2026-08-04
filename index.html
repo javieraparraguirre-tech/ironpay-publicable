@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>IronPay | Cobranza</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260804b">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -301,10 +301,10 @@
 
       <section class="view" id="reports">
         <div class="metrics">
-          <article><span>Total socios</span><strong id="rTotal">0</strong></article>
-          <article><span>Al dia</span><strong id="rPaid">0</strong></article>
-          <article class="danger-metric"><span>Morosos</span><strong id="rOverdue">0</strong></article>
-          <article><span>Deuda total</span><strong id="rDebt">$0</strong></article>
+          <article class="filter-card active-filter" data-report-filter="all"><span>Total socios</span><strong id="rTotal">0</strong></article>
+          <article class="filter-card" data-report-filter="paid"><span>Al dia</span><strong id="rPaid">0</strong></article>
+          <article class="danger-metric filter-card" data-report-filter="overdue"><span>Morosos</span><strong id="rOverdue">0</strong></article>
+          <article class="filter-card" data-report-filter="debt"><span>Deuda total</span><strong id="rDebt">$0</strong></article>
         </div>
         <section class="panel">
           <div class="panel-head">
@@ -313,6 +313,9 @@
               <span id="reportLabel">0 socios</span>
             </div>
             <div class="report-actions">
+              <label class="compact-field">Buscar socio
+                <input id="reportSearch" placeholder="Nombre, telefono o email">
+              </label>
               <label class="compact-field">Mes
                 <select id="reportPeriod"></select>
               </label>
@@ -353,6 +356,6 @@
     <tr><td class="empty" colspan="10">Sin informacion para mostrar.</td></tr>
   </template>
 
-  <script src="app-20260801b.js?v=20260804"></script>
+  <script src="app-20260804.js?v=20260804b"></script>
 </body>
 </html>

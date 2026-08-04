@@ -13,6 +13,7 @@ let state = {
   charges: [],
   payments: [],
   notices: [],
+  reportStatusFilter: "all",
   portalToken: new URLSearchParams(location.search).get("portal"),
   portalData: null
 };
@@ -50,6 +51,7 @@ function bindEvents() {
   $("#refreshChargesBtn").addEventListener("click", refreshAll);
   $("#downloadReportBtn").addEventListener("click", downloadMembersReport);
   $("#reportPeriod").addEventListener("change", renderReports);
+  $("#reportSearch").addEventListener("input", renderReports);
   $("#memberPeriod").addEventListener("change", renderMembers);
   $("#memberSearch").addEventListener("input", renderMembers);
   $("#cancelMemberEditBtn").addEventListener("click", resetMemberForm);
@@ -90,6 +92,13 @@ function bindEvents() {
   $("#noticeRows").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-confirm-notice]");
     if (button) await confirmNotice(button.dataset.confirmNotice);
+  });
+
+  $$("[data-report-filter]").forEach((card) => {
+    card.addEventListener("click", () => {
+      state.reportStatusFilter = card.dataset.reportFilter || "all";
+      renderReports();
+    });
   });
 }
 
@@ -591,6 +600,7 @@ function renderReports() {
   syncReportPeriodOptions();
   const period = selectedReportPeriod();
   const report = membersReport(period);
+  const filteredReport = filterMembersReport(report);
   const paid = report.filter((item) => item.paymentStatus === "Al dia");
   const overdue = report.filter((item) => item.paymentStatus === "Moroso");
   const debt = report.reduce((total, item) => total + item.debt, 0);
@@ -599,9 +609,13 @@ function renderReports() {
   text("#rPaid", paid.length);
   text("#rOverdue", overdue.length);
   text("#rDebt", fmt(debt));
-  text("#reportLabel", `${report.length} socios - ${periodLabel(period)}`);
+  syncReportFilterCards();
+  text("#reportLabel", report.length === filteredReport.length
+    ? `${report.length} socios - ${periodLabel(period)}`
+    : `${filteredReport.length} de ${report.length} socios - ${periodLabel(period)}`
+  );
 
-  rows("#reportRows", report, (item) => `
+  rows("#reportRows", filteredReport, (item) => `
     <tr>
       <td>${esc(item.name)}</td>
       <td>${esc(item.plan)}</td>
@@ -615,6 +629,31 @@ function renderReports() {
       <td>${badge(item.memberStatus, item.memberStatus === "Activo" ? "ok" : "warn")}</td>
     </tr>
   `);
+}
+
+function filterMembersReport(report) {
+  const query = normalizeText($("#reportSearch")?.value || "");
+  const statusFilter = state.reportStatusFilter || "all";
+  return report.filter((item) => {
+    const matchesSearch = !query || normalizeText([
+      item.name,
+      item.plan,
+      item.phone,
+      item.email
+    ].join(" ")).includes(query);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "paid" && item.paymentStatus === "Al dia") ||
+      (statusFilter === "overdue" && item.paymentStatus === "Moroso") ||
+      (statusFilter === "debt" && item.debt > 0);
+    return matchesSearch && matchesStatus;
+  });
+}
+
+function syncReportFilterCards() {
+  $$("[data-report-filter]").forEach((card) => {
+    card.classList.toggle("active-filter", card.dataset.reportFilter === (state.reportStatusFilter || "all"));
+  });
 }
 
 function renderSettings() {
@@ -692,7 +731,7 @@ function membersReport(period = selectedReportPeriod()) {
 
 function downloadMembersReport() {
   const period = selectedReportPeriod();
-  const report = membersReport(period);
+  const report = filterMembersReport(membersReport(period));
   const headers = ["Mes", "Socio", "Plan", "Telefono", "Email", "Estado pago", "Ultimo pago", "Pagado mes", "Total pagado", "Deuda", "Estado socio"];
   const lines = [
     headers,

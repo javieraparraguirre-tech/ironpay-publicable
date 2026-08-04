@@ -11,7 +11,6 @@ create table if not exists profiles (
 create table if not exists app_settings (
   id int primary key default 1,
   payment_link_url text not null default '',
-  booking_link_url text not null default '',
   monthly_due_day int not null default 3 check (monthly_due_day between 1 and 28),
   transfer_bank text not null default 'Banco Santander',
   transfer_holder text not null default 'Iron Gym Spa',
@@ -19,8 +18,6 @@ create table if not exists app_settings (
   transfer_account_type text not null default 'Cuenta corriente',
   transfer_account_number text not null default '91046920',
   transfer_email text not null default 'ironboxspa@gmail.com',
-  notification_whatsapp text not null default '',
-  notification_email text not null default 'ironboxspa@gmail.com',
   updated_at timestamptz not null default now()
 );
 
@@ -59,10 +56,6 @@ create table if not exists charges (
   created_at timestamptz not null default now()
 );
 
-create unique index if not exists charges_one_monthly_per_period
-on charges (member_id, period)
-where kind = 'monthly';
-
 create table if not exists payments (
   id uuid primary key default gen_random_uuid(),
   charge_id uuid not null references charges(id) on delete cascade,
@@ -84,10 +77,6 @@ create table if not exists payment_notices (
   confirmed_at date,
   created_at timestamptz not null default now()
 );
-
-create unique index if not exists payment_notices_one_pending_per_charge
-on payment_notices (charge_id, member_id)
-where status = 'pending';
 
 create or replace view charge_balances as
 select
@@ -163,56 +152,6 @@ begin
 end;
 $$;
 
-create or replace function ensure_current_monthly_charges()
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  settings_row app_settings%rowtype;
-  due_date_value date;
-  period_value text;
-  created_count int := 0;
-begin
-  select * into settings_row from app_settings where id = 1;
-
-  if not found then
-    return jsonb_build_object('ok', false, 'message', 'Configuracion no encontrada');
-  end if;
-
-  due_date_value := make_date(
-    extract(year from current_date)::int,
-    extract(month from current_date)::int,
-    greatest(1, least(28, settings_row.monthly_due_day))
-  );
-  period_value := to_char(due_date_value, 'YYYY-MM');
-
-  insert into charges (member_id, kind, description, amount, due_date, period)
-  select
-    m.id,
-    'monthly',
-    'Mensualidad ' || p.name,
-    p.amount,
-    due_date_value,
-    period_value
-  from members m
-  join plans p on p.id = m.plan_id
-  where m.status = 'active'
-    and p.active = true
-  on conflict do nothing;
-
-  get diagnostics created_count = row_count;
-
-  return jsonb_build_object(
-    'ok', true,
-    'created', created_count,
-    'period', period_value,
-    'due_date', due_date_value
-  );
-end;
-$$;
-
 create or replace function get_member_portal_by_identifier(identifier text)
 returns jsonb
 language plpgsql
@@ -253,7 +192,6 @@ declare
   member_row members%rowtype;
   charge_row charge_balances%rowtype;
   notice_id uuid;
-  existing_notice_id uuid;
 begin
   select * into member_row
   from members
@@ -274,45 +212,11 @@ begin
     return jsonb_build_object('ok', false, 'message', 'Cargo no encontrado');
   end if;
 
-  select id into existing_notice_id
-  from payment_notices
-  where charge_id = charge
-    and member_id = member_row.id
-    and status = 'pending'
-  order by created_at desc
-  limit 1;
+  insert into payment_notices (charge_id, member_id, amount, reference)
+  values (charge, member_row.id, least(amount, charge_row.balance), reference)
+  returning id into notice_id;
 
-  if existing_notice_id is not null then
-    return jsonb_build_object(
-      'ok', true,
-      'notice_id', existing_notice_id,
-      'status', 'already_pending',
-      'message', 'Esta transferencia ya fue informada y esta pendiente de revision.'
-    );
-  end if;
-
-  begin
-    insert into payment_notices (charge_id, member_id, amount, reference)
-    values (charge, member_row.id, least(amount, charge_row.balance), reference)
-    returning id into notice_id;
-  exception when unique_violation then
-    select id into notice_id
-    from payment_notices
-    where charge_id = charge
-      and member_id = member_row.id
-      and status = 'pending'
-    order by created_at desc
-    limit 1;
-
-    return jsonb_build_object(
-      'ok', true,
-      'notice_id', notice_id,
-      'status', 'already_pending',
-      'message', 'Esta transferencia ya fue informada y esta pendiente de revision.'
-    );
-  end;
-
-  return jsonb_build_object('ok', true, 'notice_id', notice_id, 'status', 'created');
+  return jsonb_build_object('ok', true, 'notice_id', notice_id);
 end;
 $$;
 
