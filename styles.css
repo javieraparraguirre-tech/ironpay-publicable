@@ -31,10 +31,6 @@ button {
   padding: 11px 14px;
 }
 button:hover { background: var(--primary-dark); }
-button:disabled {
-  cursor: not-allowed;
-  opacity: .62;
-}
 .secondary { background: var(--soft); color: var(--primary-dark); }
 .secondary:hover { background: #d2ebe8; }
 .danger { background: #fee4e2; color: var(--bad); }
@@ -90,18 +86,6 @@ button:disabled {
   font-size: 30px;
 }
 
-.portal-action {
-  background: var(--primary);
-  border-radius: 8px;
-  color: white;
-  font-weight: 800;
-  padding: 11px 14px;
-  text-decoration: none;
-}
-.portal-action:hover {
-  background: var(--primary-dark);
-}
-
 .transfer-box {
   background: #f8fbfa;
   border: 1px solid var(--line);
@@ -120,37 +104,6 @@ button:disabled {
 .transfer-box span {
   color: var(--muted);
   font-weight: 800;
-}
-
-.notice {
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 800;
-  padding: 12px;
-}
-.notice.ok {
-  background: #dcfce7;
-  color: var(--good);
-}
-.notice.warn {
-  background: #fef3c7;
-  color: var(--warn);
-}
-.notice.bad {
-  background: #fee2e2;
-  color: var(--bad);
-}
-.notice-action {
-  background: var(--primary);
-  border-radius: 8px;
-  color: white;
-  display: inline-block;
-  margin-top: 10px;
-  padding: 10px 12px;
-  text-decoration: none;
-}
-.notice-action:hover {
-  background: var(--primary-dark);
 }
 
 .login-screen {
@@ -315,6 +268,20 @@ h2 { font-size: 18px; }
   margin-bottom: 14px;
 }
 .panel-head span { color: var(--muted); font-size: 13px; font-weight: 800; }
+.report-actions {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
+}
+.compact-field {
+  min-width: 170px;
+}
+.compact-field input,
+.compact-field select {
+  padding: 12px;
+}
 .stack { display: grid; gap: 14px; align-content: start; }
 label {
   color: var(--muted);

@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
@@ -13,7 +13,6 @@
       <div class="logo">IP</div>
       <h1>IronPay</h1>
       <p>Plataforma web de cobranza para mensualidades y clases sueltas.</p>
-      <small class="version-tag">Actualizado: 29-07-2026 C</small>
       <div class="login-tabs">
         <button class="tab-button active" type="button" data-login-tab="admin">Administracion</button>
         <button class="tab-button" type="button" data-login-tab="member">Socio</button>
@@ -55,7 +54,6 @@
           <span>Saldo pendiente</span>
           <strong id="portalDebt">$0</strong>
         </div>
-        <a class="portal-action" id="bookingPortalLink" href="https://ironbox-reservas.vercel.app/socio">Volver a reservas</a>
       </section>
       <div class="grid two">
         <section class="panel">
@@ -63,7 +61,6 @@
             <h2>Estado de cuenta</h2>
             <span id="portalChargesLabel">0 pendientes</span>
           </div>
-          <div class="notice hidden" id="linkPaymentNoticeMessage" role="status"></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Concepto</th><th>Vence</th><th class="right">Saldo</th><th>Accion</th></tr></thead>
@@ -79,8 +76,7 @@
             <label>Cargo <select name="chargeId" id="transferCharge"></select></label>
             <label>Monto transferido <input name="amount" type="number" min="0" step="1000" required></label>
             <label>Referencia o comprobante <input name="reference" placeholder="Ej: Nro operacion banco"></label>
-            <div class="notice hidden" id="transferNoticeMessage" role="status"></div>
-            <button id="transferNoticeBtn">Informar transferencia</button>
+            <button>Informar transferencia</button>
           </form>
         </section>
       </div>
@@ -156,21 +152,40 @@
       <section class="view" id="members">
         <div class="grid form-grid">
           <form class="panel stack" id="memberForm">
-            <h2>Nuevo socio</h2>
+            <h2 id="memberFormTitle">Nuevo socio</h2>
+            <input name="memberId" type="hidden">
             <label>Nombre completo <input name="name" required></label>
             <label>Telefono <input name="phone" required placeholder="+56 9 1234 5678"></label>
             <label>Email <input name="email" type="email"></label>
             <label>Plan <select name="planId" id="memberPlan"></select></label>
-            <button>Guardar socio</button>
+            <label>Estado
+              <select name="status">
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+              </select>
+            </label>
+            <button id="memberSubmitBtn">Guardar socio</button>
+            <button class="secondary hidden" id="cancelMemberEditBtn" type="button">Cancelar edicion</button>
           </form>
           <section class="panel">
             <div class="panel-head">
-              <h2>Socios</h2>
-              <button class="secondary" id="refreshMembersBtn">Actualizar</button>
+              <div>
+                <h2>Socios</h2>
+                <span id="membersLabel">0 socios</span>
+              </div>
+              <div class="report-actions">
+                <label class="compact-field">Buscar socio
+                  <input id="memberSearch" placeholder="Nombre, telefono o email">
+                </label>
+                <label class="compact-field">Mes
+                  <select id="memberPeriod"></select>
+                </label>
+                <button class="secondary" id="refreshMembersBtn">Actualizar</button>
+              </div>
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Nombre</th><th>Plan</th><th>Telefono</th><th class="right">Deuda</th><th>Link</th><th>WhatsApp</th><th>Accion</th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Plan</th><th>Telefono</th><th class="right">Pagado mes</th><th class="right">Deuda mes</th><th>Estado pago</th><th>Link</th><th>WhatsApp</th><th>Accion</th></tr></thead>
                 <tbody id="memberRows"></tbody>
               </table>
             </div>
@@ -271,7 +286,7 @@
           </form>
           <section class="panel">
             <div class="panel-head">
-              <h2>Pagos informados</h2>
+              <h2>Transferencias informadas</h2>
               <span id="noticesLabel">0 pendientes</span>
             </div>
             <div class="table-wrap">
@@ -297,11 +312,16 @@
               <h2>Todos los socios</h2>
               <span id="reportLabel">0 socios</span>
             </div>
-            <button class="secondary" id="downloadReportBtn">Descargar Excel</button>
+            <div class="report-actions">
+              <label class="compact-field">Mes
+                <select id="reportPeriod"></select>
+              </label>
+              <button class="secondary" id="downloadReportBtn">Descargar Excel</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Socio</th><th>Plan</th><th>Telefono</th><th>Email</th><th>Estado pago</th><th>Ultimo pago</th><th class="right">Deuda</th><th>Estado socio</th></tr></thead>
+              <thead><tr><th>Socio</th><th>Plan</th><th>Telefono</th><th>Email</th><th>Estado pago</th><th>Ultimo pago</th><th class="right">Pagado mes</th><th class="right">Total pagado</th><th class="right">Deuda</th><th>Estado socio</th></tr></thead>
               <tbody id="reportRows"></tbody>
             </table>
           </div>
@@ -311,13 +331,12 @@
       <section class="view" id="settings">
         <div class="grid two">
           <section class="panel stack">
-          <h2>Pago online</h2>
+            <h2>Pago online</h2>
             <form class="stack" id="settingsForm">
               <label>Link de pago real <input name="payment_link_url" type="url" placeholder="https://..."></label>
-              <label>Link plataforma agendamiento <input name="booking_link_url" type="url" placeholder="https://..."></label>
+              <label>WhatsApp para avisos <input name="notice_whatsapp" placeholder="56912345678"></label>
+              <label>Email para avisos <input name="notice_email" type="email" placeholder="avisos@ironbox.cl"></label>
               <label>Dia vencimiento mensual <input name="monthly_due_day" type="number" min="1" max="28" required></label>
-              <label>WhatsApp para avisos <input name="notification_whatsapp" placeholder="+56 9 1234 5678"></label>
-              <label>Email para avisos <input name="notification_email" type="email" placeholder="ironboxspa@gmail.com"></label>
               <button>Guardar configuracion</button>
             </form>
           </section>
@@ -331,10 +350,9 @@
   </div>
 
   <template id="emptyTpl">
-    <tr><td class="empty" colspan="8">Sin informacion para mostrar.</td></tr>
+    <tr><td class="empty" colspan="10">Sin informacion para mostrar.</td></tr>
   </template>
 
-  <script src="app-20260729c.js?v=20260729c"></script>
+  <script src="app-20260801b.js?v=20260804"></script>
 </body>
 </html>
-
